@@ -158,8 +158,8 @@
     // ==========================================
     // 如果是在 Vercel 上跑，process.env.NEXT_PUBLIC_XXX 會被替換
     // 如果是單機預覽測試，請手動暫時貼上那兩串鑰匙字串來測試 (發布前記得刪除)
-    const supabaseUrl = '請替換成你的_Project_URL_如果單機測試的話'; 
-    const supabaseKey = '請替換成你的_API_Key_如果單機測試的話';
+    const supabaseUrl = 'https://eqkjwyebucsywiuvkdmp.supabase.co'; 
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVxa2p3eWVidWNzeXdpdXZrZG1wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzMTk0NTYsImV4cCI6MjEwMDg5NTQ1Nn0.bsLDBZ7IXBa-KPTZUfy3WMkPIgPMJ57465fIxaBghfY';
     
     // 如果系統抓不到 Vercel 變數，就嘗試用上面的 fallback
     const finalUrl = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL) ? process.env.NEXT_PUBLIC_SUPABASE_URL : supabaseUrl;
