@@ -4,13 +4,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>百家 AI 獵手 | Baccarat AI Hunter</title>
+    <!-- 引入 Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --bg-dark: #0f172a; --panel-bg: #1e293b; --text-main: #f8fafc; --text-muted: #94a3b8; --brand-cyan: #06b6d4; --banker-red: #ef4444; --player-blue: #3b82f6; --warning-amber: #f59e0b; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg-dark); color: var(--text-main); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .header { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg-dark); color: var(--text-main); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh;}
+        
+        /* 登入畫面樣式 */
+        #login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; }
+        .login-box { background: var(--panel-bg); padding: 40px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border-top: 4px solid var(--brand-cyan); width: 320px; text-align: center; }
+        .login-box h2 { margin-top: 0; color: #fff; margin-bottom: 20px;}
+        .login-input { width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-size: 16px; outline: none; }
+        .login-input:focus { border-color: var(--brand-cyan); }
+        .btn-login { width: 100%; background: var(--brand-cyan); color: #000; font-weight: bold; border: none; padding: 12px; border-radius: 8px; font-size: 16px; cursor: pointer; transition: 0.2s; }
+        .btn-login:hover { filter: brightness(1.1); box-shadow: 0 0 15px rgba(6,182,212,0.4); }
+        .login-error { color: var(--banker-red); font-size: 14px; margin-top: 10px; display: none; }
+
+        /* 主程式樣式 (預設隱藏) */
+        #app-screen { display: none; flex-direction: column; align-items: center; width: 100%; }
+        
+        .header { display: flex; align-items: center; justify-content: space-between; width: 1000px; margin-bottom: 20px; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .user-info { font-size: 14px; color: var(--text-muted); display: flex; align-items: center; gap: 10px; background: var(--panel-bg); padding: 8px 15px; border-radius: 20px; border: 1px solid #334155;}
+        .btn-logout { background: transparent; border: 1px solid var(--text-muted); color: var(--text-muted); padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .btn-logout:hover { color: #fff; border-color: #fff; }
+        
         .logo-icon { width: 48px; height: 48px; animation: pulse-glow 2s infinite alternate; }
         @keyframes pulse-glow { 0% { filter: drop-shadow(0 0 5px var(--brand-cyan)); } 100% { filter: drop-shadow(0 0 15px var(--brand-cyan)); } }
         .header h1 { margin: 0; font-size: 28px; letter-spacing: 2px; background: linear-gradient(90deg, #fff, var(--brand-cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
         .container { display: grid; grid-template-columns: 300px 1fr; gap: 20px; max-width: 1000px; width: 1000px; }
         .panel { background-color: var(--panel-bg); border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border-top: 3px solid var(--panel-bg); }
         .panel.active-attack { border-top: 3px solid var(--warning-amber); box-shadow: 0 0 20px rgba(245, 158, 11, 0.2); }
@@ -50,56 +72,159 @@
     </style>
 </head>
 <body>
-    <div class="header">
-        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+
+    <!-- 登入畫面 -->
+    <div id="login-screen">
+        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 80px; height: 80px; margin-bottom:20px;">
             <circle cx="12" cy="12" r="10"></circle><path d="M22 12h-4"></path><path d="M6 12H2"></path><path d="M12 6V2"></path><path d="M12 22v-4"></path><circle cx="12" cy="12" r="3" fill="#06b6d4"></circle>
         </svg>
-        <h1>百家 AI 獵手</h1>
+        <div class="login-box">
+            <h2>系統登入</h2>
+            <input type="email" id="email" class="login-input" placeholder="登入信箱 (Email)">
+            <input type="password" id="password" class="login-input" placeholder="授權密碼 (Password)">
+            <button class="btn-login" onclick="handleLogin()" id="login-btn">安全登入</button>
+            <div class="login-error" id="login-error">帳號或密碼錯誤，或無授權限。</div>
+        </div>
+        <div style="margin-top: 20px; color: var(--text-muted); font-size: 12px;">© Baccarat AI Hunter SaaS Terminal</div>
     </div>
-    <div class="container">
-        <div class="panel">
-            <h2>資金與風控</h2>
-            <div class="capital-section">
-                <div class="input-group">
-                    <label>設定初始本金</label>
-                    <input type="number" id="start-capital" value="25500" onchange="updateCapital()">
+
+    <!-- 系統主程式畫面 -->
+    <div id="app-screen">
+        <div class="header">
+            <div class="header-left">
+                <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle><path d="M22 12h-4"></path><path d="M6 12H2"></path><path d="M12 6V2"></path><path d="M12 22v-4"></path><circle cx="12" cy="12" r="3" fill="#06b6d4"></circle>
+                </svg>
+                <h1>百家 AI 獵手</h1>
+            </div>
+            <div class="user-info">
+                <span id="user-display-email">user@example.com</span>
+                <span style="color: #10b981;">● 連線正常</span>
+                <button class="btn-logout" onclick="handleLogout()">登出</button>
+            </div>
+        </div>
+        
+        <div class="container">
+            <div class="panel">
+                <h2>資金與風控</h2>
+                <div class="capital-section">
+                    <div class="input-group">
+                        <label>設定初始本金</label>
+                        <input type="number" id="start-capital" value="25500" onchange="updateCapital()">
+                    </div>
+                    <div class="stats-row"><span>當前餘額:</span><span id="current-balance" style="color: #fff;">$25,500</span></div>
+                    <div class="stats-row"><span>總淨損益:</span><span id="total-profit" class="profit-pos">$0</span></div>
+                    <div class="stats-row" style="margin-top: 10px; color: var(--text-muted);"><span>單注基礎碼:</span><span id="base-unit">$100</span></div>
                 </div>
-                <div class="stats-row"><span>當前餘額:</span><span id="current-balance" style="color: #fff;">$25,500</span></div>
-                <div class="stats-row"><span>總淨損益:</span><span id="total-profit" class="profit-pos">$0</span></div>
-                <div class="stats-row" style="margin-top: 10px; color: var(--text-muted);"><span>單注基礎碼:</span><span id="base-unit">$100</span></div>
+                <h2 style="margin-top: 20px;">請輸入</h2>
+                <div class="btn-group">
+                    <button class="btn btn-player" id="btn-p" onclick="inputResult(1)">閒 (P)</button>
+                    <button class="btn btn-banker" id="btn-b" onclick="inputResult(2)">莊 (B)</button>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-small" id="btn-undo" onclick="undo()">退回一步</button>
+                    <button class="btn btn-small" id="btn-reset" onclick="resetShoe()">清空新局</button>
+                </div>
             </div>
-            <h2 style="margin-top: 20px;">請輸入</h2>
-            <div class="btn-group">
-                <button class="btn btn-player" id="btn-p" onclick="inputResult(1)">閒 (P)</button>
-                <button class="btn btn-banker" id="btn-b" onclick="inputResult(2)">莊 (B)</button>
-            </div>
-            <div class="btn-group">
-                <button class="btn btn-small" id="btn-undo" onclick="undo()">退回一步</button>
-                <button class="btn btn-small" id="btn-reset" onclick="resetShoe()">清空新局</button>
+            
+            <div class="panel" id="main-panel">
+                <h2>AI 狀態機監控</h2>
+                <div class="status-header">
+                    <div class="status-box"><div class="label">當前局數</div><div class="value" id="game-count">0</div></div>
+                    <div class="status-box"><div class="label">系統狀態</div><div class="value warmup" id="sys-state">⏳ 暖局中 (1-11)</div></div>
+                </div>
+                <div class="attack-panel" id="attack-panel">
+                    <div class="attack-header"><span>⚡ 演算法鎖定目標</span><span id="martingale-step">八纜進度: 1/8</span></div>
+                    <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 5px;">下一注請下達指令</div>
+                    <div class="attack-target" id="target-display">--</div>
+                    <div class="attack-amount" id="bet-amount">$0</div>
+                </div>
+                <h2 style="margin-top: 20px;">大數據六珠路</h2>
+                <div class="road-container"><div class="six-road" id="six-road-grid"></div></div>
             </div>
         </div>
-        <div class="panel" id="main-panel">
-            <h2>AI 狀態機監控</h2>
-            <div class="status-header">
-                <div class="status-box"><div class="label">當前局數</div><div class="value" id="game-count">0</div></div>
-                <div class="status-box"><div class="label">系統狀態</div><div class="value warmup" id="sys-state">⏳ 暖局中 (1-11)</div></div>
-            </div>
-            <div class="attack-panel" id="attack-panel">
-                <div class="attack-header"><span>⚡ 演算法鎖定目標</span><span id="martingale-step">八纜進度: 1/8</span></div>
-                <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 5px;">下一注請下達指令</div>
-                <div class="attack-target" id="target-display">--</div>
-                <div class="attack-amount" id="bet-amount">$0</div>
-            </div>
-            <h2 style="margin-top: 20px;">大數據六珠路</h2>
-            <div class="road-container"><div class="six-road" id="six-road-grid"></div></div>
+        
+        <div class="log-panel" id="log-window"><div class="log-entry">[系統] 獵手系統初始化完成。雲端伺服器連線正常。</div></div>
+        
+        <div class="disclaimer">
+            <strong>【免責與風控聲明】</strong><br>本系統為機率量化輔助工具。經 10,000 靴真實大數據極限回測，取得高達 99.7% 之過關率。然歷史數據不代表未來獲利保證。任何機率遊戲皆存在極端偏差風險，請嚴守止損紀律，切勿重倉押注。使用者須對自身決策負完全責任。
         </div>
-    </div>
-    <div class="log-panel" id="log-window"><div class="log-entry">[系統] 獵手系統初始化完成。雲端伺服器連線正常。</div></div>
-    <div class="disclaimer">
-        <strong>【免責與風控聲明】</strong><br>本系統為機率量化輔助工具。經 10,000 靴真實大數據極限回測，取得高達 99.7% 之過關率。然歷史數據不代表未來獲利保證。任何機率遊戲皆存在極端偏差風險，請嚴守止損紀律，切勿重倉押注。使用者須對自身決策負完全責任。
     </div>
 
 <script>
+    // ==========================================
+    // 🔑 Supabase 驗證與初始化設定
+    // 這邊會自動讀取你剛才在 Vercel 設定的環境變數！
+    // ==========================================
+    // 如果是在 Vercel 上跑，process.env.NEXT_PUBLIC_XXX 會被替換
+    // 如果是單機預覽測試，請手動暫時貼上那兩串鑰匙字串來測試 (發布前記得刪除)
+    const supabaseUrl = '請替換成你的_Project_URL_如果單機測試的話'; 
+    const supabaseKey = '請替換成你的_API_Key_如果單機測試的話';
+    
+    // 如果系統抓不到 Vercel 變數，就嘗試用上面的 fallback
+    const finalUrl = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL) ? process.env.NEXT_PUBLIC_SUPABASE_URL : supabaseUrl;
+    const finalKey = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) ? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY : supabaseKey;
+    
+    let supabase = null;
+    try {
+        supabase = supabaseCreateClient(finalUrl, finalKey);
+    } catch(e) {
+        console.warn("Supabase 尚未綁定金鑰，請確認環境變數");
+    }
+
+    // 檢查登入狀態
+    async function checkSession() {
+        if(!supabase) return;
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('app-screen').style.display = 'flex';
+            document.getElementById('user-display-email').innerText = session.user.email;
+        } else {
+            document.getElementById('login-screen').style.display = 'flex';
+            document.getElementById('app-screen').style.display = 'none';
+        }
+    }
+
+    // 執行登入
+    async function handleLogin() {
+        if(!supabase) return alert("金鑰未設定，無法登入");
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const btn = document.getElementById('login-btn');
+        const errEl = document.getElementById('login-error');
+        
+        btn.innerText = "驗證中...";
+        btn.disabled = true;
+        errEl.style.display = 'none';
+
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+        if (error) {
+            errEl.innerText = "帳號或密碼錯誤，或無授權限。";
+            errEl.style.display = 'block';
+            btn.innerText = "安全登入";
+            btn.disabled = false;
+        } else {
+            btn.innerText = "登入成功！";
+            setTimeout(checkSession, 500);
+        }
+    }
+
+    // 登出
+    async function handleLogout() {
+        if(!supabase) return;
+        await supabase.auth.signOut();
+        checkSession();
+    }
+
+    // 啟動時檢查
+    if(supabase) checkSession();
+
+
+    // ==========================================
+    // 💡 百家獵手前端主邏輯 (保持不變)
+    // ==========================================
     let shoeData = []; let initialCapital = 25500; let baseUnit = 100;
 
     function updateCapital() {
@@ -160,6 +285,12 @@
         }
     }
     renderRoad();
+
+    // supabaseCreateClient 函數實作 (取代 NPM import 問題)
+    function supabaseCreateClient(url, key) {
+        if (!url || !key || url.includes('請替換成')) return null;
+        return window.supabase.createClient(url, key);
+    }
 </script>
 </body>
 </html>
