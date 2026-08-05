@@ -121,13 +121,20 @@
         if(!supabaseApp) return;
         const { data: { session } } = await supabaseApp.auth.getSession();
         if (session) {
-            // ⭐ 檢查是否過期
+            // ⭐ 檢查是否過期與權限
             const { data: profile } = await supabaseApp.from('profiles').select('*').eq('id', session.user.id).single();
             if (profile) {
                 const now = new Date(); const expireDate = new Date(profile.expire_date);
                 if (now > expireDate) {
                     alert(`您的會員權限已於 ${expireDate.toLocaleDateString()} 到期。\n請聯繫客服續約！`);
                     await supabaseApp.auth.signOut(); return;
+                }
+                
+                // 🛑 終極防護：檢查是不是尊爵客 (如果不是 'pro'，就踢回首頁)
+                if (profile.plan_type !== 'pro') {
+                    alert(`⚠️ 權限不足！\n您的帳號為「標準單桌版」，即將為您導向標準版網頁。\n如需升級多桌功能，請聯繫客服。`);
+                    window.location.href = '/'; 
+                    return;
                 }
             }
             document.getElementById('login-screen').style.display = 'none';
