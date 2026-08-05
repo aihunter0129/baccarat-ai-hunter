@@ -3,184 +3,333 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>百家 AI 獵手 | 尊爵多桌版</title>
+    <title>百家 AI 獵手 | 尊爵多桌戰情中心</title>
+    <!-- 引入 Supabase JS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --bg-dark: #0f172a; --panel-bg: #1e293b; --text-main: #f8fafc; --text-muted: #94a3b8; --brand-cyan: #06b6d4; --banker-red: #ef4444; --player-blue: #3b82f6; --warning-amber: #f59e0b; }
         body { font-family: -apple-system, sans-serif; background-color: var(--bg-dark); color: var(--text-main); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh;}
-        .header { display: flex; align-items: center; justify-content: space-between; width: 100%; max-width: 1400px; margin-bottom: 20px; }
-        .control-bar { background: var(--panel-bg); padding: 15px; border-radius: 12px; border: 1px solid var(--brand-cyan); margin-bottom: 20px; width: 100%; max-width: 1400px; display: flex; gap: 15px; align-items: center;}
-        select, input { background: #0f172a; border: 1px solid #334155; color: #fff; padding: 10px; border-radius: 6px; font-size: 16px; outline: none; }
         
-        /* 動態網格系統：根據選擇桌數調整排版 */
-        #grid-container { display: grid; gap: 20px; width: 100%; max-width: 1400px; }
+        /* 登入畫面樣式 */
+        #login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; }
+        .login-box { background: var(--panel-bg); padding: 40px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border-top: 4px solid #f59e0b; width: 320px; text-align: center; }
+        .login-input { width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 12px; border-radius: 8px; margin-bottom: 15px; outline: none; }
+        .btn-login { width: 100%; background: #f59e0b; color: #000; font-weight: bold; border: none; padding: 12px; border-radius: 8px; font-size: 16px; cursor: pointer; }
+        .login-error { color: var(--banker-red); font-size: 14px; margin-top: 10px; display: none; }
+
+        /* 主應用畫面樣式 */
+        #app-screen { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 1600px; }
+        .header { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 20px; }
+        .user-info { font-size: 14px; color: var(--text-muted); display: flex; align-items: center; gap: 10px; background: var(--panel-bg); padding: 8px 15px; border-radius: 20px; border: 1px solid #334155;}
+        .btn-logout { background: transparent; border: 1px solid var(--text-muted); color: var(--text-muted); padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
         
-        .table-panel { background: var(--panel-bg); border-radius: 12px; padding: 15px; border: 1px solid #334155; display: flex; flex-direction: column;}
-        .table-panel h3 { margin: 0 0 10px 0; color: var(--brand-cyan); font-size: 16px; border-bottom: 1px solid #334155; padding-bottom: 5px;}
-        .btn-group { display: flex; gap: 5px; margin-bottom: 10px; }
-        .btn { flex: 1; padding: 10px; border: none; border-radius: 6px; font-weight: bold; color: white; cursor: pointer; }
+        .control-bar { background: var(--panel-bg); padding: 15px 25px; border-radius: 12px; border: 1px solid #f59e0b; margin-bottom: 20px; width: 100%; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;}
+        select, input { background: #0f172a; border: 1px solid #334155; color: #fff; padding: 8px 12px; border-radius: 6px; outline: none; }
+        
+        /* 網格與單桌卡片 (完美繼承原版 UI) */
+        #grid-container { display: grid; gap: 20px; width: 100%; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); }
+        
+        .table-card { background: var(--panel-bg); border-radius: 12px; padding: 20px; border-top: 3px solid var(--brand-cyan); box-shadow: 0 4px 6px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 15px;}
+        .table-card.active-attack { border-top: 3px solid var(--warning-amber); box-shadow: 0 0 15px rgba(245, 158, 11, 0.15); }
+        
+        .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 10px;}
+        .card-header h2 { margin: 0; font-size: 18px; color: #fff; }
+        .profit-pos { color: #10b981; font-weight: bold; font-size: 18px;} .profit-neg { color: #ef4444; font-weight: bold; font-size: 18px;}
+        
+        .capital-row { display: flex; justify-content: space-between; align-items: center; background: #0f172a; padding: 10px 15px; border-radius: 8px; font-size: 14px;}
+        
+        .status-box { text-align: center; padding: 15px; border-radius: 8px; background: #0f172a; font-size: 18px; font-weight: bold;}
+        .status-box.warmup { color: var(--text-muted); }
+        .status-box.scanning { color: #10b981; }
+        .status-box.attacking { background: rgba(245, 158, 11, 0.1); color: var(--warning-amber); border: 1px solid var(--warning-amber); }
+        
+        .btn-group { display: flex; gap: 10px; }
+        .btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; color: white; cursor: pointer; transition: 0.2s;}
+        .btn:active { transform: scale(0.95); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-player { background-color: var(--player-blue); } .btn-banker { background-color: var(--banker-red); }
-        .btn-small { background-color: #334155; font-size: 12px;}
+        .btn-small { background-color: #334155; font-size: 14px; }
         
-        .status-box { background: #0f172a; padding: 10px; border-radius: 6px; text-align: center; margin-bottom: 10px; font-size: 14px;}
-        .attack-mode { border: 1px solid var(--warning-amber); background: rgba(245, 158, 11, 0.1); color: var(--warning-amber); font-weight: bold;}
-        .road-container { background: #0f172a; padding: 5px; border-radius: 6px; overflow-x: auto; flex-grow: 1;}
-        .bead { width: 16px; height: 16px; border-radius: 50%; display: inline-block; margin: 1px; font-size: 10px; text-align: center; line-height: 16px; color: white;}
+        /* 經典六珠路大網格 */
+        .road-wrapper { background: #0f172a; padding: 10px; border-radius: 8px; overflow-x: auto; border: 1px solid #334155;}
+        .six-road { display: grid; grid-template-rows: repeat(6, 26px); grid-auto-columns: 26px; grid-auto-flow: column; gap: 2px; }
+        .road-cell { width: 26px; height: 26px; background: #1e293b; border: 1px solid #334155; display: flex; align-items: center; justify-content: center; }
+        .bead { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; color: white; }
         .bead.banker { background-color: var(--banker-red); } .bead.player { background-color: var(--player-blue); }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1 style="margin:0; font-size: 24px; color: var(--brand-cyan);">百家 AI 獵手 | 尊爵戰情中心</h1>
-        <div id="total-net-profit" style="font-size: 20px; font-weight: bold; color: #10b981;">總淨損益: $0</div>
+
+    <!-- 🔑 登入畫面 -->
+    <div id="login-screen">
+        <div class="login-box">
+            <h2 style="color:#f59e0b; margin-top:0;">尊爵版 | 系統登入</h2>
+            <p style="color:var(--text-muted); font-size:12px; margin-bottom:20px;">多桌戰情中心需具備 Pro 權限方可登入</p>
+            <input type="email" id="email" class="login-input" placeholder="登入信箱 (Email)">
+            <input type="password" id="password" class="login-input" placeholder="授權密碼 (Password)">
+            <button class="btn-login" onclick="handleLogin()" id="login-btn">安全登入</button>
+            <div class="login-error" id="login-error"></div>
+        </div>
     </div>
 
-    <div class="control-bar">
-        <label>同時監控桌數：</label>
-        <select id="table-count" onchange="renderTables()">
-            <option value="1">1 桌</option>
-            <option value="2">2 桌</option>
-            <option value="3">3 桌</option>
-            <option value="4" selected>4 桌</option>
-            <option value="5">5 桌</option>
-            <option value="6">6 桌</option>
-        </select>
-        <label style="margin-left:20px;">單桌基礎碼：</label>
-        <input type="number" id="base-unit" value="100" style="width: 80px;" onchange="updateBaseUnit()">
-    </div>
+    <!-- 💻 主應用畫面 -->
+    <div id="app-screen">
+        <div class="header">
+            <h1 style="margin:0; font-size: 24px; color: #f59e0b;">百家 AI 獵手 <span style="color:var(--text-muted); font-size:16px;">| 尊爵多桌戰情中心</span></h1>
+            <div class="user-info">
+                <span id="user-display-email"></span>
+                <button class="btn-logout" onclick="handleLogout()">登出</button>
+            </div>
+        </div>
 
-    <div id="grid-container"></div>
+        <div class="control-bar">
+            <div>
+                <label style="color:var(--text-muted); margin-right:10px;">請選擇同時監控桌數：</label>
+                <select id="table-count" onchange="initTables()">
+                    <option value="1">1 桌</option>
+                    <option value="2">2 桌</option>
+                    <option value="3">3 桌</option>
+                    <option value="4" selected>4 桌</option>
+                    <option value="5">5 桌</option>
+                    <option value="6">6 桌</option>
+                </select>
+            </div>
+            <div style="font-size: 22px; font-weight: bold;">
+                總淨損益: <span id="global-net-profit" style="color: #10b981;">$0</span>
+            </div>
+        </div>
+
+        <div id="grid-container">
+            <!-- 這裡的卡片會透過 JS 動態生成，完美繼承原本的 UI -->
+        </div>
+    </div>
 
 <script>
     // ==========================================
-    // 🔑 請填寫金鑰 (與 index.html 相同)
+    // 🔑 把你的金鑰精準貼在下方引號內 (非常重要)
     // ==========================================
     const myProjectUrl = 'https://eqkjwyebucsywiuvkdmp.supabase.co'; 
     const myApiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVxa2p3eWVidWNzeXdpdXZrZG1wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzMTk0NTYsImV4cCI6MjEwMDg5NTQ1Nn0.bsLDBZ7IXBa-KPTZUfy3WMkPIgPMJ57465fIxaBghfY';
     
-    // 多桌狀態管理 (陣列)
-    let tablesData = [];
-    let globalBaseUnit = 100;
+    let supabaseApp = null;
+    if (!myProjectUrl.includes('請替換成')) { supabaseApp = window.supabase.createClient(myProjectUrl, myApiKey); }
 
-    function updateBaseUnit() {
-        globalBaseUnit = parseInt(document.getElementById('base-unit').value) || 100;
-        tablesData.forEach(t => { t.netProfit = 0; }); // 切換基碼重置損益
-        updateTotalProfit();
+    // ==========================================
+    // 🛡️ 權限驗證系統
+    // ==========================================
+    async function checkSession() {
+        if(!supabaseApp) return;
+        const { data: { session } } = await supabaseApp.auth.getSession();
+        if (session) {
+            // ⭐ 檢查是否過期
+            const { data: profile } = await supabaseApp.from('profiles').select('*').eq('id', session.user.id).single();
+            if (profile) {
+                const now = new Date(); const expireDate = new Date(profile.expire_date);
+                if (now > expireDate) {
+                    alert(`您的會員權限已於 ${expireDate.toLocaleDateString()} 到期。\n請聯繫客服續約！`);
+                    await supabaseApp.auth.signOut(); return;
+                }
+            }
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('app-screen').style.display = 'flex';
+            document.getElementById('user-display-email').innerText = session.user.email;
+            initTables(); // 登入成功後初始化桌次
+        } else {
+            document.getElementById('login-screen').style.display = 'flex';
+            document.getElementById('app-screen').style.display = 'none';
+        }
     }
 
-    function renderTables() {
+    async function handleLogin() {
+        if(!supabaseApp) return alert("金鑰尚未設定，無法連線。");
+        const email = document.getElementById('email').value; const password = document.getElementById('password').value;
+        const btn = document.getElementById('login-btn'); const errEl = document.getElementById('login-error');
+        btn.innerText = "驗證中..."; btn.disabled = true; errEl.style.display = 'none';
+
+        const { error } = await supabaseApp.auth.signInWithPassword({ email, password });
+        if (error) {
+            errEl.innerText = "登入失敗：" + error.message; errEl.style.display = 'block';
+            btn.innerText = "安全登入"; btn.disabled = false;
+        } else {
+            btn.innerText = "登入成功！"; setTimeout(checkSession, 500);
+        }
+    }
+    async function handleLogout() { if(!supabaseApp) return; await supabaseApp.auth.signOut(); checkSession(); }
+    if(supabaseApp) checkSession();
+
+
+    // ==========================================
+    // 💡 多桌核心邏輯與 UI 渲染
+    // ==========================================
+    let tablesData = [];
+
+    // 初始化/切換桌數
+    function initTables() {
         const count = parseInt(document.getElementById('table-count').value);
         const grid = document.getElementById('grid-container');
-        
-        // 依照桌數動態改變 CSS 排版
-        grid.style.gridTemplateColumns = `repeat(${count <= 3 ? count : 3}, 1fr)`;
-        
         grid.innerHTML = "";
         
-        // 保留已存在的桌次資料，新增缺失的
+        // 保留舊資料，新增新桌次
         while(tablesData.length < count) {
-            tablesData.push({ id: tablesData.length + 1, shoeData: [], state: "WARMUP", netProfit: 0, target: null, betAmount: 0 });
+            tablesData.push({ 
+                id: tablesData.length + 1, 
+                shoeData: [], state: "WARMUP", 
+                netProfit: 0, target: null, betAmount: 0, 
+                initialCapital: 25500, baseUnit: 100 
+            });
         }
         tablesData = tablesData.slice(0, count);
 
+        // 渲染每一桌的 UI
         tablesData.forEach((table, index) => {
+            const currentBalance = table.initialCapital + table.netProfit;
             const div = document.createElement('div');
-            div.className = 'table-panel';
+            div.className = `table-card ${table.state === 'ATTACKING' ? 'active-attack' : ''}`;
+            div.id = `table-card-${index}`;
+            
             div.innerHTML = `
-                <h3>桌次 ${table.id} | 損益: <span id="profit-${index}" style="color:${table.netProfit >= 0 ? '#10b981' : '#ef4444'}">$${table.netProfit}</span></h3>
-                
-                <div class="status-box ${table.state === 'ATTACKING' ? 'attack-mode' : ''}" id="status-${index}">
-                    ${table.state === 'ATTACKING' ? `⚡ 攻擊目標: ${table.target === '1' ? '閒' : '莊'} | 金額: $${table.betAmount}` : (table.state === 'SCANNING' ? '🟢 智能掃描中' : '⏳ 暖局中')}
+                <div class="card-header">
+                    <h2>🎯 桌次 ${table.id}</h2>
+                    <div id="profit-${index}" class="${table.netProfit >= 0 ? 'profit-pos' : 'profit-neg'}">
+                        ${table.netProfit >= 0 ? '+' : ''}$${table.netProfit}
+                    </div>
                 </div>
-                
+
+                <div class="capital-row">
+                    <div>
+                        <label style="color:var(--text-muted); font-size:12px; display:block;">設定初始本金</label>
+                        <input type="number" id="capital-input-${index}" value="${table.initialCapital}" style="width:100px; padding:4px;" onchange="updateTableCapital(${index})">
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="color:var(--text-muted); font-size:12px;">單注基礎碼: <span id="baseunit-display-${index}">$${table.baseUnit}</span></div>
+                        <div style="color:#fff;">餘額: <span id="balance-${index}">$${currentBalance}</span></div>
+                    </div>
+                </div>
+
+                <div class="status-box ${table.state.toLowerCase()}" id="status-${index}">
+                    ${renderStatusText(table)}
+                </div>
+
                 <div class="btn-group">
-                    <button class="btn btn-player" onclick="inputResult(${index}, 1)">閒 (P)</button>
-                    <button class="btn btn-banker" onclick="inputResult(${index}, 2)">莊 (B)</button>
+                    <button class="btn btn-player table-btn-${index}" onclick="inputResult(${index}, 1)">閒 (P)</button>
+                    <button class="btn btn-banker table-btn-${index}" onclick="inputResult(${index}, 2)">莊 (B)</button>
                 </div>
                 <div class="btn-group">
-                    <button class="btn btn-small" onclick="undo(${index})">退回</button>
-                    <button class="btn btn-small" onclick="resetShoe(${index})">清空</button>
+                    <button class="btn btn-small table-btn-${index}" onclick="undo(${index})">退回一步</button>
+                    <button class="btn btn-small table-btn-${index}" onclick="resetShoe(${index})">清空新局</button>
                 </div>
-                
-                <div class="road-container" id="road-${index}"></div>
+
+                <div class="road-wrapper"><div class="six-road" id="road-${index}"></div></div>
             `;
             grid.appendChild(div);
-            drawRoad(index);
+            drawSixRoad(index);
         });
-        updateTotalProfit();
+        updateGlobalProfit();
     }
 
-    async function inputResult(tIndex, res) { 
-        tablesData[tIndex].shoeData.push(res); 
-        drawRoad(tIndex); 
-        await fetchCloudBrain(tIndex); 
-    }
-    async function undo(tIndex) { 
-        if(tablesData[tIndex].shoeData.length === 0) return; 
-        tablesData[tIndex].shoeData.pop(); 
-        drawRoad(tIndex); 
-        await fetchCloudBrain(tIndex); 
-    }
-    async function resetShoe(tIndex) { 
-        tablesData[tIndex].shoeData = []; 
-        tablesData[tIndex].netProfit = 0; 
-        drawRoad(tIndex); 
-        await fetchCloudBrain(tIndex); 
+    function renderStatusText(table) {
+        if(table.state === 'ATTACKING') return `⚡ 鎖定目標: ${table.target === '1' ? '閒(P)' : '莊(B)'} | 下注: $${table.betAmount}`;
+        if(table.state === 'SCANNING') return `🟢 智能掃描中...`;
+        if(table.state === 'STOPPED') return `🛑 已達50局 (停止)`;
+        return `⏳ 暖局中 (1-11局)`;
     }
 
+    // 獨立更新每桌本金
+    function updateTableCapital(index) {
+        if(tablesData[index].shoeData.length > 0) {
+            alert("請在清空新局後再調整本金！");
+            document.getElementById(`capital-input-${index}`).value = tablesData[index].initialCapital;
+            return;
+        }
+        let val = parseFloat(document.getElementById(`capital-input-${index}`).value);
+        if(val && val >= 255) {
+            tablesData[index].initialCapital = val;
+            tablesData[index].baseUnit = Math.floor(val / 255);
+            tablesData[index].netProfit = 0;
+            document.getElementById(`baseunit-display-${index}`).innerText = `$${tablesData[index].baseUnit}`;
+            document.getElementById(`balance-${index}`).innerText = `$${tablesData[index].initialCapital}`;
+            document.getElementById(`profit-${index}`).innerText = `+$0`;
+            document.getElementById(`profit-${index}`).className = 'profit-pos';
+            updateGlobalProfit();
+        }
+    }
+
+    // 經典大網格六珠路渲染
+    function drawSixRoad(tIndex) {
+        const data = tablesData[tIndex].shoeData;
+        const grid = document.getElementById(`road-${tIndex}`);
+        grid.innerHTML = "";
+        
+        let cols = Math.max(15, Math.ceil(data.length / 6)); 
+        grid.style.gridTemplateColumns = `repeat(${cols}, 26px)`;
+
+        for(let c=0; c<cols; c++) {
+            for(let r=0; r<6; r++) {
+                let idx = c * 6 + r;
+                let cell = document.createElement("div");
+                cell.className = "road-cell";
+                if(idx < data.length) {
+                    let bead = document.createElement("div");
+                    bead.className = `bead ${data[idx] === 1 ? 'player' : 'banker'}`;
+                    bead.innerText = data[idx] === 1 ? '閒' : '莊';
+                    cell.appendChild(bead);
+                }
+                grid.appendChild(cell);
+            }
+        }
+        // 自動卷軸捲到最右邊
+        grid.parentElement.scrollLeft = grid.parentElement.scrollWidth;
+    }
+
+    // 操作按鈕功能
+    async function inputResult(tIndex, res) { tablesData[tIndex].shoeData.push(res); drawSixRoad(tIndex); await fetchCloudBrain(tIndex); }
+    async function undo(tIndex) { if(tablesData[tIndex].shoeData.length === 0) return; tablesData[tIndex].shoeData.pop(); drawSixRoad(tIndex); await fetchCloudBrain(tIndex); }
+    async function resetShoe(tIndex) { tablesData[tIndex].shoeData = []; tablesData[tIndex].netProfit = 0; drawSixRoad(tIndex); await fetchCloudBrain(tIndex); }
+
+    // 呼叫雲端大腦 (加入強制防死機機制)
     async function fetchCloudBrain(tIndex) {
         const table = tablesData[tIndex];
+        const btns = document.querySelectorAll(`.table-btn-${tIndex}`);
+        btns.forEach(b => b.disabled = true); // 運算時鎖定該桌按鈕
+        
         try {
             const response = await fetch('/api/hunter', { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify({ shoeData: table.shoeData, baseUnit: globalBaseUnit }) 
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ shoeData: table.shoeData, baseUnit: table.baseUnit }) 
             });
             const data = await response.json();
             
-            // 更新該桌狀態
-            table.state = data.state;
-            table.netProfit = data.netProfit || 0;
-            table.target = data.target;
-            table.betAmount = data.betAmount;
+            // 寫入最新狀態
+            table.state = data.state; table.netProfit = data.netProfit || 0; table.target = data.target; table.betAmount = data.betAmount;
             
-            // 局部重新渲染狀態區塊 (不閃爍)
-            document.getElementById(`profit-${tIndex}`).innerText = `$${table.netProfit}`;
-            document.getElementById(`profit-${tIndex}`).style.color = table.netProfit >= 0 ? '#10b981' : '#ef4444';
+            // 局部更新 UI
+            document.getElementById(`profit-${tIndex}`).innerText = `${table.netProfit >= 0 ? '+' : ''}$${table.netProfit}`;
+            document.getElementById(`profit-${tIndex}`).className = table.netProfit >= 0 ? 'profit-pos' : 'profit-neg';
+            document.getElementById(`balance-${tIndex}`).innerText = `$${table.initialCapital + table.netProfit}`;
             
+            const cardEl = document.getElementById(`table-card-${tIndex}`);
             const statusBox = document.getElementById(`status-${tIndex}`);
-            if(data.state === 'ATTACKING') {
-                statusBox.className = "status-box attack-mode";
-                statusBox.innerHTML = `⚡ 攻擊目標: ${data.target === '1' ? '閒' : '莊'} | 金額: $${data.betAmount}`;
-            } else {
-                statusBox.className = "status-box";
-                statusBox.innerHTML = data.state === 'SCANNING' ? '🟢 智能掃描中' : '⏳ 暖局中';
-            }
-            updateTotalProfit();
-        } catch (e) { console.error("API Error", e); }
+            
+            cardEl.className = `table-card ${table.state === 'ATTACKING' ? 'active-attack' : ''}`;
+            statusBox.className = `status-box ${table.state.toLowerCase()}`;
+            statusBox.innerHTML = renderStatusText(table);
+
+            updateGlobalProfit();
+        } catch (e) {
+            console.error("API Error", e);
+            alert("雲端伺服器連線異常，請檢查網路。");
+        } finally {
+            // ⭐ 防死機機制：無論 API 成功還是失敗崩潰，都強制解鎖按鈕
+            btns.forEach(b => b.disabled = false);
+        }
     }
 
-    function updateTotalProfit() {
+    function updateGlobalProfit() {
         const total = tablesData.reduce((sum, t) => sum + t.netProfit, 0);
-        const el = document.getElementById('total-net-profit');
-        el.innerText = `總淨損益: $${total}`;
+        const el = document.getElementById('global-net-profit');
+        el.innerText = `$${total}`;
         el.style.color = total >= 0 ? '#10b981' : '#ef4444';
     }
-
-    function drawRoad(tIndex) {
-        const data = tablesData[tIndex].shoeData;
-        const container = document.getElementById(`road-${tIndex}`);
-        container.innerHTML = "";
-        data.forEach(res => {
-            const b = document.createElement('div');
-            b.className = `bead ${res === 1 ? 'player' : 'banker'}`;
-            b.innerText = res === 1 ? '閒' : '莊';
-            container.appendChild(b);
-        });
-    }
-
-    // 初始化載入
-    renderTables();
 </script>
 </body>
 </html>
