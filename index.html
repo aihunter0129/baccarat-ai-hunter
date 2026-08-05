@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>百家 AI 獵手 | Baccarat AI Hunter</title>
+    <title>百家 AI 獵手 | 標準單桌版</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --bg-dark: #0f172a; --panel-bg: #1e293b; --text-main: #f8fafc; --text-muted: #94a3b8; --brand-cyan: #06b6d4; --banker-red: #ef4444; --player-blue: #3b82f6; --warning-amber: #f59e0b; }
@@ -84,7 +84,7 @@
                 <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="10"></circle><path d="M22 12h-4"></path><path d="M6 12H2"></path><path d="M12 6V2"></path><path d="M12 22v-4"></path><circle cx="12" cy="12" r="3" fill="#06b6d4"></circle>
                 </svg>
-                <h1>百家 AI 獵手</h1>
+                <h1>百家 AI 獵手 <span style="color:var(--text-muted); font-size:16px;">| 標準單桌版</span></h1>
             </div>
             <div class="user-info">
                 <span id="user-display-email"></span>
@@ -138,7 +138,7 @@
 
 <script>
     // ==========================================
-    // 🔑 把你的金鑰精準貼在下方引號內 (非常重要)
+    // 🔑 把你的金鑰精準貼在下方引號內
     // ==========================================
     const myProjectUrl = 'https://eqkjwyebucsywiuvkdmp.supabase.co'; 
     const myApiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVxa2p3eWVidWNzeXdpdXZrZG1wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzMTk0NTYsImV4cCI6MjEwMDg5NTQ1Nn0.bsLDBZ7IXBa-KPTZUfy3WMkPIgPMJ57465fIxaBghfY';
@@ -152,25 +152,18 @@
         if(!supabaseApp) return;
         const { data: { session } } = await supabaseApp.auth.getSession();
         if (session) {
-            // ⭐ 1. 登入成功後，去資料庫抓他的到期日與偏好本金
             const { data: profile } = await supabaseApp.from('profiles').select('*').eq('id', session.user.id).single();
-            
             if (profile) {
-                // ⭐ 2. 檢查是否到期
-                const now = new Date();
-                const expireDate = new Date(profile.expire_date);
+                const now = new Date(); const expireDate = new Date(profile.expire_date);
                 if (now > expireDate) {
                     alert(`您的會員權限已於 ${expireDate.toLocaleDateString()} 到期。\n請聯繫 LINE 客服續約以繼續使用！`);
-                    await supabaseApp.auth.signOut();
-                    return;
+                    await supabaseApp.auth.signOut(); return;
                 }
-                // ⭐ 3. 載入上次紀錄的本金
                 initialCapital = profile.last_capital || 25500;
                 document.getElementById('start-capital').value = initialCapital;
                 baseUnit = Math.floor(initialCapital / 255);
                 updateUIState({netProfit: 0});
             }
-
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('app-screen').style.display = 'flex';
             document.getElementById('user-display-email').innerText = session.user.email;
@@ -201,6 +194,17 @@
     // ==========================================
     // 💡 百家獵手前端主邏輯
     // ==========================================
+    function log(msg, type="info") {
+        const lw = document.getElementById('log-window');
+        if(!lw) return;
+        const entry = document.createElement('div');
+        entry.className = `log-entry ${type}`;
+        const time = new Date().toLocaleTimeString();
+        entry.innerText = `[${time}] ${msg}`;
+        lw.appendChild(entry);
+        lw.scrollTop = lw.scrollHeight;
+    }
+
     async function updateCapital() {
         if(shoeData.length > 0) { alert("請在清空新局後再調整本金！"); document.getElementById('start-capital').value = initialCapital; return; }
         let val = parseFloat(document.getElementById('start-capital').value);
@@ -208,7 +212,6 @@
             initialCapital = val; baseUnit = Math.floor(val / 255); updateUIState({netProfit: 0}); 
             log(`[系統] 本金已更新，單注基礎碼為 $${baseUnit}`); 
             
-            // ⭐ 4. 將新設定的本金存回雲端資料庫
             const { data: { session } } = await supabaseApp.auth.getSession();
             if(session) {
                 await supabaseApp.from('profiles').update({ last_capital: initialCapital }).eq('id', session.user.id);
@@ -221,21 +224,34 @@
     async function resetShoe() { shoeData = []; renderRoad(); await fetchCloudBrain(); log(`[系統] 盤面已清空，開始新局。`); }
 
     async function fetchCloudBrain() {
-        const btns = document.querySelectorAll('.btn'); btns.forEach(b => b.disabled = true);
-        document.getElementById('sys-state').innerText = "☁️ 雲端運算中..."; document.getElementById("game-count").innerText = shoeData.length;
+        const btns = document.querySelectorAll('.btn'); 
+        btns.forEach(b => b.disabled = true); // ⭐ 運算時鎖定按鈕
+        
+        document.getElementById('sys-state').innerText = "☁️ 雲端運算中..."; 
+        document.getElementById("game-count").innerText = shoeData.length;
+        
         try {
             const response = await fetch('/api/hunter', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ shoeData: shoeData, baseUnit: baseUnit }) });
-            const data = await response.json(); updateUIState(data);
-        } catch (e) { log(`[錯誤] 無法連線至雲端伺服器！`, "error"); document.getElementById('sys-state').innerText = "⚠️ 網路斷線"; }
-        btns.forEach(b => b.disabled = false);
+            const data = await response.json(); 
+            updateUIState(data);
+        } catch (e) { 
+            log(`[錯誤] 無法連線至雲端伺服器！`, "error"); 
+            document.getElementById('sys-state').innerText = "⚠️ 網路斷線"; 
+        } finally {
+            // ⭐ 強制解鎖按鈕 (防卡死機制)
+            btns.forEach(b => b.disabled = false);
+        }
     }
     
     function updateUIState(data) {
         let currentBalance = initialCapital + (data.netProfit || 0); document.getElementById('current-balance').innerText = `$${currentBalance.toLocaleString()}`;
         let profitEl = document.getElementById('total-profit'); profitEl.innerText = `${data.netProfit >= 0 ? '+' : ''}${(data.netProfit || 0).toLocaleString()}`;
         profitEl.className = data.netProfit >= 0 ? 'profit-pos' : 'profit-neg'; document.getElementById('base-unit').innerText = `$${baseUnit.toLocaleString()}`;
+        
         if(data.logMsg) log(data.logMsg, data.logType);
+        
         let stateEl = document.getElementById("sys-state"); let panelEl = document.getElementById("main-panel"); let atkPanel = document.getElementById("attack-panel");
+        
         if (data.state === "WARMUP") { stateEl.innerHTML = "⏳ 暖局中 (1-11)"; stateEl.className = "value warmup"; panelEl.className = "panel"; atkPanel.classList.remove("show"); }
         else if (data.state === "SCANNING") { stateEl.innerHTML = "🟢 智能掃描中"; stateEl.className = "value scanning"; panelEl.className = "panel"; atkPanel.classList.remove("show"); }
         else if (data.state === "STOPPED") { stateEl.innerHTML = "🛑 已達50局 (停止掃描)"; stateEl.className = "value warmup"; panelEl.className = "panel"; atkPanel.classList.remove("show"); }
