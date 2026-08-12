@@ -249,9 +249,10 @@
             return;
         }
         let val = parseFloat(document.getElementById(`capital-input-${index}`).value);
-        if(val && val >= 255) {
+        // 【修改點】解除 >= 255 的限制，支援小數點
+        if(val && val > 0) {
             tablesData[index].initialCapital = val;
-            tablesData[index].baseUnit = Math.floor(val / 255);
+            tablesData[index].baseUnit = Number((val / 255).toFixed(2));
             tablesData[index].netProfit = 0;
             document.getElementById(`baseunit-display-${index}`).innerText = `$${tablesData[index].baseUnit}`;
             document.getElementById(`balance-${index}`).innerText = `$${tablesData[index].initialCapital}`;
