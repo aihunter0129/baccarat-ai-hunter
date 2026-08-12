@@ -161,7 +161,8 @@
                 }
                 initialCapital = profile.last_capital || 25500;
                 document.getElementById('start-capital').value = initialCapital;
-                baseUnit = Math.floor(initialCapital / 255);
+                // 【修改點】支援讀取小數點本金
+                baseUnit = Number((initialCapital / 255).toFixed(2));
                 updateUIState({netProfit: 0});
             }
             document.getElementById('login-screen').style.display = 'none';
@@ -172,7 +173,7 @@
             document.getElementById('app-screen').style.display = 'none';
         }
     }
-
+    
     async function handleLogin() {
         if(!supabaseApp) return alert("金鑰尚未設定，無法連線。");
         const email = document.getElementById('email').value; const password = document.getElementById('password').value;
@@ -208,8 +209,11 @@
     async function updateCapital() {
         if(shoeData.length > 0) { alert("請在清空新局後再調整本金！"); document.getElementById('start-capital').value = initialCapital; return; }
         let val = parseFloat(document.getElementById('start-capital').value);
-        if(val && val >= 255) { 
-            initialCapital = val; baseUnit = Math.floor(val / 255); updateUIState({netProfit: 0}); 
+        // 【修改點】解除 >= 255 的限制，只要大於 0 即可計算小數點
+        if(val && val > 0) { 
+            initialCapital = val; 
+            baseUnit = Number((val / 255).toFixed(2)); 
+            updateUIState({netProfit: 0}); 
             log(`[系統] 本金已更新，單注基礎碼為 $${baseUnit}`); 
             
             const { data: { session } } = await supabaseApp.auth.getSession();
