@@ -3,7 +3,7 @@ export default function handler(req, res) {
 
     const { shoeData, baseUnit } = req.body;
     
-    // 40組核心演算法與注碼，完全鎖在後端，前端 F12 絕對看不到！
+    // 40組核心演算法與注碼
     const patterns = [
         { p: "1221121", bet: "11112122" }, { p: "1221122", bet: "22221211" },
         { p: "2112212", bet: "22221211" }, { p: "2112211", bet: "11112122" },
@@ -40,15 +40,16 @@ export default function handler(req, res) {
         
         if (state === "ATTACKING") {
             let target = parseInt(currentPattern.bet[step]);
-            let betAmount = baseUnit * martingaleMultipliers[step];
-            let expectedWin = target === 2 ? betAmount * 0.95 : betAmount;
+            // 【修改點】支援小數點注碼與精準計算
+            let betAmount = Number((baseUnit * martingaleMultipliers[step]).toFixed(2));
+            let expectedWin = target === 2 ? Number((betAmount * 0.95).toFixed(2)) : betAmount;
 
             if (actual === target) {
-                netProfit += expectedWin;
+                netProfit = Number((netProfit + expectedWin).toFixed(2));
                 if (t === shoeData.length) { logMsg = `🎉 第 ${step + 1} 注命中！獲利 $${expectedWin}。返回掃描模式。`; logType = "success"; }
                 state = t >= 11 ? "SCANNING" : "WARMUP";
             } else {
-                netProfit -= betAmount;
+                netProfit = Number((netProfit - betAmount).toFixed(2));
                 if (t === shoeData.length) { logMsg = `⚠️ 第 ${step + 1} 注未中 (損失 $${betAmount})。`; logType = "error"; }
                 step++;
                 if (step >= 8) {
@@ -73,7 +74,6 @@ export default function handler(req, res) {
                     let found = false;
                     for (let pat of patterns) {
                         if (histStr === pat.p) {
-                            // 【三單跳濾網】自動過濾前面帶有 121 或 212 的連續單跳
                             if (t >= 10) {
                                 let filterStr = pat.p.charAt(0) === '1' ? '212' : '121';
                                 let histCheckStr = shoeData.slice(t - 10, t - 7).join("");
@@ -95,7 +95,7 @@ export default function handler(req, res) {
     let nextBetAmount = 0;
     if (state === "ATTACKING" && currentPattern) {
         nextTarget = currentPattern.bet[step];
-        nextBetAmount = baseUnit * martingaleMultipliers[step];
+        nextBetAmount = Number((baseUnit * martingaleMultipliers[step]).toFixed(2));
     }
 
     res.status(200).json({ state, step, target: nextTarget, betAmount: nextBetAmount, netProfit, logMsg, logType });
