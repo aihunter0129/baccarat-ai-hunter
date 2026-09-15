@@ -89,7 +89,6 @@
     // ⭐ 七攬馬丁格爾倍投 (1, 2, 4, 8, 16, 32, 64)
     const MARTINGALE_STEPS = [1, 2, 4, 8, 16, 32, 64]; 
 
-    // 初始化桌次資料
     function initTables() {
         const count = parseInt(document.getElementById('table-count').value);
         const grid = document.getElementById('grid-container');
@@ -147,70 +146,57 @@
         updateGlobalProfit();
     }
 
-    // ⭐ 核心函式：動態判定 3x3 九宮格規則
     function evaluateGrid(shoe, nextIndex) {
-        let c = Math.floor(nextIndex / 6); // 行 (Column) 0-based
-        let r = nextIndex % 6;             // 列 (Row) 0-based
+        let c = Math.floor(nextIndex / 6); 
+        let r = nextIndex % 6;             
         
-        // 若還沒走到第三行(c>=2)或第三列(r>=2)，無法往左上角發散出完整的 9 宮格
         if (c < 2 || r < 2) return null; 
 
-        let pCount = 0; // 閒 (1)
-        let bCount = 0; // 莊 (2)
+        let pCount = 0; 
+        let bCount = 0; 
 
-        // 掃描左上方 3x3 區域
         for (let i = c - 2; i <= c; i++) {
             for (let j = r - 2; j <= r; j++) {
-                if (i === c && j === r) continue; // 排除準備預測的目標格子本身
-                
+                if (i === c && j === r) continue; 
                 let val = shoe[i * 6 + j];
                 if (val == 1) pCount++;
                 else if (val == 2) bCount++;
             }
         }
 
-        // 規則判定
-        if (pCount === 8 || bCount === 8) return null; // (8,0) = 不下
-        if (pCount === 4 && bCount === 4) return null; // (4,4) = 不下
+        if (pCount === 8 || bCount === 8) return null; 
+        if (pCount === 4 && bCount === 4) return null; 
 
-        if (pCount === 7) return '1'; // (7,1) 下7顆那邊
+        if (pCount === 7) return '1'; 
         if (bCount === 7) return '2';
-        
-        if (pCount === 6) return '1'; // (6,2) 下6顆那邊
+        if (pCount === 6) return '1'; 
         if (bCount === 6) return '2';
-        
-        if (pCount === 5) return '2'; // (5,3) 下3顆那邊 (反轉)
+        if (pCount === 5) return '2'; 
         if (bCount === 5) return '1';
 
         return null;
     }
 
-    // 重算與還原狀態機
     function recalculateLogic(table) {
         let netProfit = 0;
         let mStep = 0;
-        let recommend = null; // 當下的預測目標
+        let recommend = null; 
 
-        // 從第一手開始，完整模擬歷史
         for (let i = 0; i < table.shoeData.length; i++) {
             let res = table.shoeData[i].toString(); 
             
-            // 1. 結算上一把的注單
             if (recommend) {
                 if (res === recommend.target) {
                     let payout = (res === '2') ? (recommend.bet * 0.95) : recommend.bet;
                     netProfit += payout;
-                    mStep = 0; // 贏了重置纜
+                    mStep = 0; 
                 } else {
                     netProfit -= recommend.bet;
                     mStep++;
-                    if (mStep >= 7) {
-                        mStep = 0; // 七纜斷纜，重置
-                    }
+                    if (mStep >= 7) mStep = 0; 
                 }
             }
 
-            // 2. 評估下一把要不要下注
             let nextIndex = i + 1;
             let target = evaluateGrid(table.shoeData.slice(0, nextIndex), nextIndex);
             
@@ -221,11 +207,10 @@
                     step: mStep + 1
                 };
             } else {
-                recommend = null; // 九宮格條件不符合 (或遇到 8:0, 4:4)，此把觀望
+                recommend = null; 
             }
         }
 
-        // 決定 UI 狀態顯示
         let state = 'WARMUP';
         let currentLen = table.shoeData.length;
         let c = Math.floor(currentLen / 6);
@@ -235,23 +220,30 @@
             state = 'ATTACKING';
         } else {
             if (c < 2 || r < 2) {
-                state = 'WARMUP'; // 還沒走到可以框九宮格的地方
+                state = 'WARMUP'; 
             } else {
-                state = 'SCANNING'; // 已經可以框了，但當前是 8:0 或 4:4
+                state = 'SCANNING'; 
             }
         }
 
         return { netProfit, state, recommend, step: mStep, currentLen: currentLen };
     }
 
-    // 渲染狀態文字
+    // ⭐ 修改點：在 SCANNING 狀態時，檢查目前的馬丁格爾進度 (data.step)
     function renderStatusText(data) {
         if(data.state === 'ATTACKING') return `⚡ [${data.recommend.step}/7攬] 目標: ${data.recommend.target === '1' ? '閒(P)' : '莊(B)'} | 下注: $${data.recommend.bet.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`;
-        if(data.state === 'SCANNING') return `🟢 九宮格算區中 (等待破局)`;
+        
+        if(data.state === 'SCANNING') {
+            if (data.step > 0) {
+                // 如果目前帶有未完成的纜段，加上黃色預警提示
+                return `🟢 觀望破局中 <span style="color: #f59e0b; margin-left: 5px;">(⚠️隨時準備第 ${data.step + 1} 攬)</span>`;
+            }
+            return `🟢 九宮格算區中 (等待破局)`;
+        }
+        
         return `⏳ 佈局中 (等待九宮格成型)`;
     }
 
-    // 更新各桌介面
     function updateTableUI(tIndex) {
         const table = tablesData[tIndex];
         const data = recalculateLogic(table);
@@ -322,7 +314,6 @@
         el.style.color = total >= 0 ? '#10b981' : '#ef4444';
     }
 
-    // 載入即啟動
     window.onload = initTables;
 </script>
 </body>
