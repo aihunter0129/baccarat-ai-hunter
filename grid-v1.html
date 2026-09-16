@@ -98,7 +98,8 @@
             tablesData.push({ 
                 id: tablesData.length + 1, 
                 shoeData: [], 
-                initialCapital: 25500, baseUnit: 100 
+                // ⭐ 修改點：預設資金改成 12700 (剛好對應 127，得出 100 底注)
+                initialCapital: 12700, baseUnit: 100 
             });
         }
         tablesData = tablesData.slice(0, count);
@@ -229,13 +230,11 @@
         return { netProfit, state, recommend, step: mStep, currentLen: currentLen };
     }
 
-    // ⭐ 修改點：在 SCANNING 狀態時，檢查目前的馬丁格爾進度 (data.step)
     function renderStatusText(data) {
         if(data.state === 'ATTACKING') return `⚡ [${data.recommend.step}/7攬] 目標: ${data.recommend.target === '1' ? '閒(P)' : '莊(B)'} | 下注: $${data.recommend.bet.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`;
         
         if(data.state === 'SCANNING') {
             if (data.step > 0) {
-                // 如果目前帶有未完成的纜段，加上黃色預警提示
                 return `🟢 觀望破局中 <span style="color: #f59e0b; margin-left: 5px;">(⚠️隨時準備第 ${data.step + 1} 攬)</span>`;
             }
             return `🟢 九宮格算區中 (等待破局)`;
@@ -273,7 +272,8 @@
         let val = parseFloat(document.getElementById(`capital-input-${tIndex}`).value);
         if(val && val > 0) {
             tablesData[tIndex].initialCapital = val;
-            tablesData[tIndex].baseUnit = Number((val / 255).toFixed(2));
+            // ⭐ 修改點：這裡除數改為 127
+            tablesData[tIndex].baseUnit = Number((val / 127).toFixed(2));
             document.getElementById(`baseunit-display-${tIndex}`).innerText = `$${tablesData[tIndex].baseUnit}`;
             updateTableUI(tIndex);
         }
