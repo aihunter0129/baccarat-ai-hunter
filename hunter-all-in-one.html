@@ -11,7 +11,6 @@
         .header { display: flex; align-items: center; justify-content: space-between; width: 100%; max-width: 1400px; margin-bottom: 20px; }
         .user-info { font-size: 14px; color: var(--text-muted); display: flex; align-items: center; gap: 10px; background: var(--panel-bg); padding: 8px 15px; border-radius: 20px; border: 1px solid #334155;}
         
-        /* 4桌完美兩兩並排佈局 */
         #grid-container { display: grid; gap: 20px; width: 100%; max-width: 1400px; grid-template-columns: repeat(2, 1fr); }
         @media (max-width: 1024px) { #grid-container { grid-template-columns: 1fr; } }
         
@@ -28,7 +27,6 @@
         .capital-row { display: flex; justify-content: space-between; align-items: center; background: #0f172a; padding: 10px 15px; border-radius: 8px; font-size: 14px;}
         .capital-row input { background: #1e293b; border: 1px solid #334155; color: #fff; padding: 4px 8px; border-radius: 6px; outline: none; width: 80px;}
         
-        /* 戰術儀表板 */
         .dashboard { display: flex; flex-direction: column; gap: 6px; background: #0f172a; padding: 10px; border-radius: 8px; }
         .dash-row { display: grid; grid-template-columns: 85px 1fr 70px; align-items: center; padding: 6px 10px; border-radius: 6px; font-size: 14px; background: rgba(30, 41, 59, 0.5); }
         .dash-row.attacking { background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); }
@@ -59,21 +57,13 @@
         </div>
     </div>
 
-    <div id="grid-container">
-        <!-- 4 桌卡片會在這裡生成 -->
-    </div>
+    <div id="grid-container"></div>
 
 <script>
-    // ==========================================
-    // 💡 四合一演算法引擎 (11攬)
-    // ==========================================
-    
-    // 11攬馬丁格爾倍投 (1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024) = 總計 2047
     const MARTINGALE_STEPS = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]; 
     const DIVISOR = 2047;
     let tablesData = [];
 
-    // 初始化 4 桌
     function initTables() {
         const grid = document.getElementById('grid-container');
         grid.innerHTML = "";
@@ -82,7 +72,7 @@
             tablesData.push({ 
                 id: i + 1, 
                 shoeData: [], 
-                initialCapital: 20470, // 預設底注 10
+                initialCapital: 20470, 
                 baseUnit: 10,
                 isMuted: false
             });
@@ -91,7 +81,7 @@
         tablesData.forEach((t, i) => updateTableUI(i));
     }
 
-    // 演算法 1：九宮格 (3x3)
+    // 1. 九宮格 (3x3)
     function evalGrid9(shoe, nextIndex) {
         let c = Math.floor(nextIndex / 6), r = nextIndex % 6;
         if (c < 2 || r < 2) return null;
@@ -111,23 +101,35 @@
         return null;
     }
 
-    // 演算法 2：直式六宮格
+    // ⭐ 2. 直式六宮格 (已修正為 2x3 滑動視窗)
     function evalV6(shoe, nextIndex) {
-        if (nextIndex % 6 !== 5) return null;
+        let c = Math.floor(nextIndex / 6), r = nextIndex % 6;
+        // 直式六宮 (2行x3列): 必須要有左邊一行 (c >= 1) 以及上方兩格 (r >= 2)
+        if (c < 1 || r < 2) return null;
+        
+        let beads = [
+            shoe[(c - 1) * 6 + (r - 2)], // 左上上
+            shoe[(c - 1) * 6 + (r - 1)], // 左上
+            shoe[(c - 1) * 6 + r],       // 左平
+            shoe[c * 6 + (r - 2)],       // 右上上
+            shoe[c * 6 + (r - 1)]        // 右上
+        ];
+        
         let p = 0, b = 0;
-        for (let i = nextIndex - 5; i < nextIndex; i++) {
-            let val = shoe[i];
-            if (val == 1) p++; else if (val == 2) b++;
+        for (let val of beads) { 
+            if (val == 1) p++; 
+            else if (val == 2) b++; 
         }
+        
         if (p === 5 || b === 5) return null;
-        if (p === 4 && b === 1) return '1';
-        if (b === 4 && p === 1) return '2';
-        if (p === 3 && b === 2) return '2';
-        if (b === 3 && p === 2) return '1';
+        if (p === 4 && b === 1) return '1'; // 閒強下閒
+        if (b === 4 && p === 1) return '2'; // 莊強下莊
+        if (p === 3 && b === 2) return '2'; // 閒強莊弱，下弱(莊)
+        if (b === 3 && p === 2) return '1'; // 莊強閒弱，下弱(閒)
         return null;
     }
 
-    // 演算法 3：橫式六宮格
+    // 3. 橫式六宮格 (3x2)
     function evalH6(shoe, nextIndex) {
         let c = Math.floor(nextIndex / 6), r = nextIndex % 6;
         if (c < 2 || r < 1) return null;
@@ -145,7 +147,7 @@
         return null;
     }
 
-    // 演算法 4：鏈式四宮格
+    // 4. 鏈式四宮格 (2x2 單雙數映射)
     function evalChain4(shoe, nextIndex) {
         let c = Math.floor(nextIndex / 6), r = nextIndex % 6;
         if (r !== 1 && r !== 3 && r !== 5) return null;
@@ -180,7 +182,6 @@
         return null;
     }
 
-    // 核心運算：一次跑 4 個戰術
     function recalculateLogic(table) {
         let strats = [
             { name: "九宮格", evalFn: evalGrid9, netProfit: 0, mStep: 0, recommend: null, state: 'WAIT' },
@@ -225,7 +226,6 @@
             if (s.recommend) {
                 s.state = 'ATTACKING';
                 isAnyAttacking = true;
-                // ⭐ 第五攬 (含) 以上觸發警報
                 if (s.recommend.step >= 5 && !table.isMuted) {
                     shouldPlaySound = true;
                 }
@@ -237,14 +237,13 @@
         return { strats, isAnyAttacking, shouldPlaySound };
     }
 
-    // 播放提示音效 (使用 Web Audio API，無需外部音檔)
     function playAlertSound() {
         try {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.type = 'triangle';
-            osc.frequency.setValueAtTime(880, ctx.currentTime); // A5 頻率
+            osc.frequency.setValueAtTime(880, ctx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.5);
             gain.gain.setValueAtTime(0.5, ctx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
