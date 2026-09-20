@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>百家 AI 獵手 | 全市場監控中心</title>
+    <style>
+        :root { --bg-dark: #0f172a; --panel-bg: #1e293b; --text-main: #f8fafc; --text-muted: #94a3b8; --brand-cyan: #06b6d4; --banker-red: #ef4444; --player-blue: #3b82f6; --warning-amber: #f59e0b; }
+        body { font-family: -apple-system, sans-serif; background-color: var(--bg-dark); color: var(--text-main); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh;}
+        
+        .header { display: flex; align-items: center; justify-content: space-between; width: 100%; max-width: 1400px; margin-bottom: 20px; }
+        .user-info { font-size: 14px; color: var(--text-muted); display: flex; align-items: center; gap: 10px; background: var(--panel-bg); padding: 8px 15px; border-radius: 20px; border: 1px solid #334155;}
+        
+        /* 4桌完美兩兩並排佈局 */
+        #grid-container { display: grid; gap: 20px; width: 100%; max-width: 1400px; grid-template-columns: repeat(2, 1fr); }
+        @media (max-width: 1024px) { #grid-container { grid-template-columns: 1fr; } }
+        
+        .table-card { background: var(--panel-bg); border-radius: 12px; padding: 20px; border-top: 3px solid var(--brand-cyan); box-shadow: 0 4px 6px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 12px;}
+        .table-card.active-attack { border-top: 3px solid var(--warning-amber); box-shadow: 0 0 20px rgba(245, 158, 11, 0.2); }
+        
+        .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 10px;}
+        .card-header h2 { margin: 0; font-size: 18px; color: #fff; display: flex; align-items: center; gap: 10px; }
+        
+        .btn-mute { background: transparent; border: 1px solid #334155; color: #fff; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 14px; transition: 0.2s; }
+        .btn-mute:hover { background: #334155; }
+        .btn-mute.muted { opacity: 0.5; border-color: #ef4444; }
+
+        .capital-row { display: flex; justify-content: space-between; align-items: center; background: #0f172a; padding: 10px 15px; border-radius: 8px; font-size: 14px;}
+        .capital-row input { background: #1e293b; border: 1px solid #334155; color: #fff; padding: 4px 8px; border-radius: 6px; outline: none; width: 80px;}
+        
+        /* 戰術儀表板 */
+        .dashboard { display: flex; flex-direction: column; gap: 6px; background: #0f172a; padding: 10px; border-radius: 8px; }
+        .dash-row { display: grid; grid-template-columns: 85px 1fr 70px; align-items: center; padding: 6px 10px; border-radius: 6px; font-size: 14px; background: rgba(30, 41, 59, 0.5); }
+        .dash-row.attacking { background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); }
+        .strat-name { font-weight: bold; color: var(--brand-cyan); }
+        .strat-status { text-align: left; }
+        .strat-profit { text-align: right; font-weight: bold; font-family: monospace; font-size: 15px;}
+        .profit-pos { color: #10b981; } .profit-neg { color: #ef4444; }
+        
+        .btn-group { display: flex; gap: 10px; }
+        .btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; color: white; cursor: pointer; transition: 0.2s;}
+        .btn:active { transform: scale(0.95); }
+        .btn-player { background-color: var(--player-blue); } .btn-banker { background-color: var(--banker-red); }
+        .btn-small { background-color: #334155; font-size: 14px; }
+        
+        .road-wrapper { background: #0f172a; padding: 10px; border-radius: 8px; overflow-x: auto; border: 1px solid #334155;}
+        .six-road { display: grid; grid-template-rows: repeat(6, 22px); grid-auto-columns: 22px; grid-auto-flow: column; gap: 2px; }
+        .road-cell { width: 22px; height: 22px; background: #1e293b; border: 1px solid #334155; display: flex; align-items: center; justify-content: center; }
+        .bead { width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: bold; color: white; }
+        .bead.banker { background-color: var(--banker-red); } .bead.player { background-color: var(--player-blue); }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1 style="margin:0; font-size: 24px; color: #f59e0b;">百家 AI 獵手 <span style="color:var(--text-muted); font-size:16px;">| 四合一全市場監控中心 (11攬)</span></h1>
+        <div class="user-info">
+            <span style="color: #10b981;">● 綜合矩陣運作中 | 11攬除數: 2047</span>
+        </div>
+    </div>
+
+    <div id="grid-container">
+        <!-- 4 桌卡片會在這裡生成 -->
+    </div>
+
+<script>
+    // ==========================================
+    // 💡 四合一演算法引擎 (11攬)
+    // ==========================================
+    
+    // 11攬馬丁格爾倍投 (1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024) = 總計 2047
+    const MARTINGALE_STEPS = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]; 
+    const DIVISOR = 2047;
+    let tablesData = [];
+
+    // 初始化 4 桌
+    function initTables() {
+        const grid = document.getElementById('grid-container');
+        grid.innerHTML = "";
+        
+        for (let i = 0; i < 4; i++) {
+            tablesData.push({ 
+                id: i + 1, 
+                shoeData: [], 
+                initialCapital: 20470, // 預設底注 10
+                baseUnit: 10,
+                isMuted: false
+            });
+            createTableCard(i);
+        }
+        tablesData.forEach((t, i) => updateTableUI(i));
+    }
+
+    // 演算法 1：九宮格 (3x3)
+    function evalGrid9(shoe, nextIndex) {
+        let c = Math.floor(nextIndex / 6), r = nextIndex % 6;
+        if (c < 2 || r < 2) return null;
+        let p = 0, b = 0;
+        for (let i = c - 2; i <= c; i++) {
+            for (let j = r - 2; j <= r; j++) {
+                if (i === c && j === r) continue;
+                let val = shoe[i * 6 + j];
+                if (val == 1) p++; else if (val == 2) b++;
+            }
+        }
+        if (p === 8 || b === 8 || (p === 4 && b === 4)) return null;
+        if (p === 7 || p === 6) return '1';
+        if (b === 7 || b === 6) return '2';
+        if (p === 5) return '2';
+        if (b === 5) return '1';
+        return null;
+    }
+
+    // 演算法 2：直式六宮格
+    function evalV6(shoe, nextIndex) {
+        if (nextIndex % 6 !== 5) return null;
+        let p = 0, b = 0;
+        for (let i = nextIndex - 5; i < nextIndex; i++) {
+            let val = shoe[i];
+            if (val == 1) p++; else if (val == 2) b++;
+        }
+        if (p === 5 || b === 5) return null;
+        if (p === 4 && b === 1) return '1';
+        if (b === 4 && p === 1) return '2';
+        if (p === 3 && b === 2) return '2';
+        if (b === 3 && p === 2) return '1';
+        return null;
+    }
+
+    // 演算法 3：橫式六宮格
+    function evalH6(shoe, nextIndex) {
+        let c = Math.floor(nextIndex / 6), r = nextIndex % 6;
+        if (c < 2 || r < 1) return null;
+        let beads = [
+            shoe[(c - 2) * 6 + (r - 1)], shoe[(c - 1) * 6 + (r - 1)], shoe[c * 6 + (r - 1)],
+            shoe[(c - 2) * 6 + r], shoe[(c - 1) * 6 + r]
+        ];
+        let p = 0, b = 0;
+        for (let val of beads) { if (val == 1) p++; else if (val == 2) b++; }
+        if (p === 5 || b === 5) return null;
+        if (p === 4 && b === 1) return '1';
+        if (b === 4 && p === 1) return '2';
+        if (p === 3 && b === 2) return '2';
+        if (b === 3 && p === 2) return '1';
+        return null;
+    }
+
+    // 演算法 4：鏈式四宮格
+    function evalChain4(shoe, nextIndex) {
+        let c = Math.floor(nextIndex / 6), r = nextIndex % 6;
+        if (r !== 1 && r !== 3 && r !== 5) return null;
+        let refC, refR;
+        if (r === 1) { if (c < 2) return null; refC = c - 1; refR = 5; }
+        else if (r === 3) { if (c < 1) return null; refC = c; refR = 1; }
+        else if (r === 5) { if (c < 1) return null; refC = c; refR = 3; }
+
+        let refBeads = [
+            shoe[(refC - 1) * 6 + (refR - 1)], shoe[(refC - 1) * 6 + refR],
+            shoe[refC * 6 + (refR - 1)], shoe[refC * 6 + refR]
+        ];
+        let refP = 0, refB = 0;
+        for (let val of refBeads) { if (val == 1) refP++; else if (val == 2) refB++; }
+        let isRefEven = (refP % 2 === 0);
+
+        let curBeads = [ shoe[(c - 1) * 6 + (r - 1)], shoe[(c - 1) * 6 + r], shoe[c * 6 + (r - 1)] ];
+        let curP = 0, curB = 0;
+        for (let val of curBeads) { if (val == 1) curP++; else if (val == 2) curB++; }
+
+        if (isRefEven) {
+            if (curP === 3 && curB === 0) return '1';
+            if (curP === 2 && curB === 1) return '2';
+            if (curP === 1 && curB === 2) return '1';
+            if (curP === 0 && curB === 3) return '2';
+        } else {
+            if (curP === 3 && curB === 0) return '2';
+            if (curP === 2 && curB === 1) return '1';
+            if (curP === 1 && curB === 2) return '2';
+            if (curP === 0 && curB === 3) return '1';
+        }
+        return null;
+    }
+
+    // 核心運算：一次跑 4 個戰術
+    function recalculateLogic(table) {
+        let strats = [
+            { name: "九宮格", evalFn: evalGrid9, netProfit: 0, mStep: 0, recommend: null, state: 'WAIT' },
+            { name: "直式六宮", evalFn: evalV6, netProfit: 0, mStep: 0, recommend: null, state: 'WAIT' },
+            { name: "橫式六宮", evalFn: evalH6, netProfit: 0, mStep: 0, recommend: null, state: 'WAIT' },
+            { name: "鏈式四宮", evalFn: evalChain4, netProfit: 0, mStep: 0, recommend: null, state: 'WAIT' }
+        ];
+
+        for (let i = 0; i < table.shoeData.length; i++) {
+            let res = table.shoeData[i].toString(); 
+
+            for (let s of strats) {
+                if (s.recommend) {
+                    if (res === s.recommend.target) {
+                        s.netProfit += (res === '2') ? (s.recommend.bet * 0.95) : s.recommend.bet;
+                        s.mStep = 0; 
+                    } else {
+                        s.netProfit -= s.recommend.bet;
+                        s.mStep++;
+                        if (s.mStep >= 11) s.mStep = 0; 
+                    }
+                }
+
+                let nextIndex = i + 1;
+                let target = s.evalFn(table.shoeData.slice(0, nextIndex), nextIndex);
+                if (target) {
+                    s.recommend = {
+                        target: target,
+                        bet: +(table.baseUnit * MARTINGALE_STEPS[s.mStep]).toFixed(2),
+                        step: s.mStep + 1
+                    };
+                } else {
+                    s.recommend = null;
+                }
+            }
+        }
+
+        let isAnyAttacking = false;
+        let shouldPlaySound = false;
+
+        for (let s of strats) {
+            if (s.recommend) {
+                s.state = 'ATTACKING';
+                isAnyAttacking = true;
+                // ⭐ 第五攬 (含) 以上觸發警報
+                if (s.recommend.step >= 5 && !table.isMuted) {
+                    shouldPlaySound = true;
+                }
+            } else {
+                s.state = (s.mStep > 0) ? 'WAITING' : 'IDLE';
+            }
+        }
+
+        return { strats, isAnyAttacking, shouldPlaySound };
+    }
+
+    // 播放提示音效 (使用 Web Audio API，無需外部音檔)
+    function playAlertSound() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(880, ctx.currentTime); // A5 頻率
+            osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.5);
+            gain.gain.setValueAtTime(0.5, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.5);
+        } catch (e) { console.log("Audio not supported"); }
+    }
+
+    function createTableCard(tIndex) {
+        const grid = document.getElementById('grid-container');
+        const div = document.createElement('div');
+        div.id = `table-card-${tIndex}`;
+        grid.appendChild(div);
+    }
+
+    function toggleMute(tIndex) {
+        tablesData[tIndex].isMuted = !tablesData[tIndex].isMuted;
+        updateTableUI(tIndex);
+    }
+
+    function updateTableCapital(tIndex) {
+        if(tablesData[tIndex].shoeData.length > 0) {
+            alert("請在清空新局後再調整本金！");
+            updateTableUI(tIndex);
+            return;
+        }
+        let val = parseFloat(document.getElementById(`capital-input-${tIndex}`).value);
+        if(val && val > 0) {
+            tablesData[tIndex].initialCapital = val;
+            tablesData[tIndex].baseUnit = Number((val / DIVISOR).toFixed(2));
+            updateTableUI(tIndex);
+        }
+    }
+
+    function formatProfit(val) {
+        return `${val >= 0 ? '+' : ''}$${val.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+    }
+
+    function renderStratRow(s) {
+        let statusHtml = '';
+        if (s.state === 'ATTACKING') {
+            let targetText = s.recommend.target === '1' ? '<span class="text-blue-400">閒(P)</span>' : '<span class="text-red-400">莊(B)</span>';
+            let alertIcon = s.recommend.step >= 5 ? ' 🔔' : '';
+            statusHtml = `<span style="color:#f59e0b;">⚡ [${s.recommend.step}/11] ${targetText} | $${s.recommend.bet}${alertIcon}</span>`;
+        } else if (s.state === 'WAITING') {
+            statusHtml = `<span style="color:#94a3b8;">🟢 觀望中 (候第 ${s.mStep + 1} 攬)</span>`;
+        } else {
+            statusHtml = `<span style="color:#64748b;">⏳ 佈局等待中...</span>`;
+        }
+        
+        let pClass = s.netProfit >= 0 ? 'profit-pos' : 'profit-neg';
+        return `
+            <div class="dash-row ${s.state === 'ATTACKING' ? 'attacking' : ''}">
+                <div class="strat-name">${s.name}</div>
+                <div class="strat-status">${statusHtml}</div>
+                <div class="strat-profit ${pClass}">${formatProfit(s.netProfit)}</div>
+            </div>
+        `;
+    }
+
+    function updateTableUI(tIndex) {
+        const table = tablesData[tIndex];
+        const { strats, isAnyAttacking, shouldPlaySound } = recalculateLogic(table);
+        
+        if (shouldPlaySound) playAlertSound();
+
+        const cardEl = document.getElementById(`table-card-${tIndex}`);
+        cardEl.className = `table-card ${isAnyAttacking ? 'active-attack' : ''}`;
+        
+        let dashHtml = strats.map(s => renderStratRow(s)).join('');
+        let muteBtnHtml = `<button class="btn-mute ${table.isMuted ? 'muted' : ''}" onclick="toggleMute(${tIndex})">${table.isMuted ? '🔇 靜音中' : '🔊 提示音開'}</button>`;
+
+        cardEl.innerHTML = `
+            <div class="card-header">
+                <h2>🎯 市場桌次 ${tIndex + 1}</h2>
+                ${muteBtnHtml}
+            </div>
+            <div class="capital-row">
+                <div>
+                    <label style="color:var(--text-muted); font-size:12px; display:block;">初始本金</label>
+                    <input type="number" id="capital-input-${tIndex}" value="${table.initialCapital}" onchange="updateTableCapital(${tIndex})">
+                </div>
+                <div style="text-align:right;">
+                    <div style="color:var(--text-muted); font-size:12px;">底注 (1/${DIVISOR}): <span style="color:#fff;">$${table.baseUnit}</span></div>
+                </div>
+            </div>
+            
+            <div class="dashboard">
+                ${dashHtml}
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-player" onclick="inputResult(${tIndex}, 1)">閒 (P)</button>
+                <button class="btn btn-banker" onclick="inputResult(${tIndex}, 2)">莊 (B)</button>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-small" onclick="undo(${tIndex})">↩ 退回一步</button>
+                <button class="btn btn-small" onclick="resetShoe(${tIndex})">🗑️ 清空新局</button>
+            </div>
+            <div class="road-wrapper"><div class="six-road" id="road-${tIndex}"></div></div>
+        `;
+        drawSixRoad(tIndex);
+    }
+
+    function drawSixRoad(tIndex) {
+        const data = tablesData[tIndex].shoeData;
+        const grid = document.getElementById(`road-${tIndex}`);
+        grid.innerHTML = "";
+        let cols = Math.max(18, Math.ceil(data.length / 6)); 
+        grid.style.gridTemplateColumns = `repeat(${cols}, 22px)`;
+        for(let c=0; c<cols; c++) {
+            for(let r=0; r<6; r++) {
+                let idx = c * 6 + r;
+                let cell = document.createElement("div");
+                cell.className = "road-cell";
+                if(idx < data.length) {
+                    let bead = document.createElement("div");
+                    bead.className = `bead ${data[idx] === 1 ? 'player' : 'banker'}`;
+                    bead.innerText = data[idx] === 1 ? '閒' : '莊';
+                    cell.appendChild(bead);
+                }
+                grid.appendChild(cell);
+            }
+        }
+        grid.parentElement.scrollLeft = grid.parentElement.scrollWidth;
+    }
+
+    function inputResult(tIndex, res) { tablesData[tIndex].shoeData.push(res); updateTableUI(tIndex); }
+    function undo(tIndex) { if(tablesData[tIndex].shoeData.length === 0) return; tablesData[tIndex].shoeData.pop(); updateTableUI(tIndex); }
+    function resetShoe(tIndex) { tablesData[tIndex].shoeData = []; updateTableUI(tIndex); }
+
+    window.onload = initTables;
+</script>
+</body>
+</html>
