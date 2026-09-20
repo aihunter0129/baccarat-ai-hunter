@@ -51,7 +51,7 @@
         <div class="header">
             <h1 style="margin:0; font-size: 24px; color: #f59e0b;">百家 AI 獵手 <span style="color:var(--text-muted); font-size:16px;">| 鏈式四宮格連續推演版 (七攬)</span></h1>
             <div class="user-info">
-                <span style="color: #10b981;">● 連續推演矩陣運作中</span>
+                <span style="color: #10b981;">● 連續推演矩陣運作中 (全比例解鎖)</span>
             </div>
         </div>
 
@@ -86,7 +86,6 @@
     // ==========================================
     
     let tablesData = [];
-    // ⭐ 七攬馬丁格爾倍投 (1, 2, 4, 8, 16, 32, 64)
     const MARTINGALE_STEPS = [1, 2, 4, 8, 16, 32, 64]; 
 
     function initTables() {
@@ -146,40 +145,37 @@
         updateGlobalProfit();
     }
 
-    // ⭐ 核心函式：鏈式四宮格推演
+    // ⭐ 核心函式：鏈式四宮格推演 (已解鎖全比例)
     function evaluateContinuousFourGrid(shoe, nextIndex) {
-        let c = Math.floor(nextIndex / 6); // 行 (Column) 0-based
-        let r = nextIndex % 6;             // 列 (Row) 0-based
+        let c = Math.floor(nextIndex / 6); 
+        let r = nextIndex % 6;             
         
-        // 預測目標只能是每個 2x2 宮格的右下角，也就是列 r=1, r=3, r=5
+        // 預測目標只能是每個 2x2 宮格的右下角
         if (r !== 1 && r !== 3 && r !== 5) return null;
 
         let refC, refR;
         
-        // 判定「基準參考框 (Reference Box)」的位置
+        // 判定基準參考框
         if (r === 1) {
-            // 目標在頂部 (如黃框)，基準框是「上一行的底部 (如藍框)」
-            if (c < 2) return null; // 必須要到第三行 (c=2) 才有左邊兩行可以框
+            if (c < 2) return null; 
             refC = c - 1;
             refR = 5;
         } else if (r === 3) {
-            // 目標在中間 (如綠框)，基準框是「同行的頂部 (如紅框)」
             if (c < 1) return null;
             refC = c;
             refR = 1;
         } else if (r === 5) {
-            // 目標在底部 (如藍框)，基準框是「同行的中間 (如綠框)」
             if (c < 1) return null;
             refC = c;
             refR = 3;
         }
 
-        // 1. 抓取「基準框 (Reference)」的 4 顆珠子
+        // 1. 抓取「基準框 (Reference)」的莊閒總數
         let refBeads = [
-            shoe[(refC - 1) * 6 + (refR - 1)], // 左上
-            shoe[(refC - 1) * 6 + refR],       // 左下
-            shoe[refC * 6 + (refR - 1)],       // 右上
-            shoe[refC * 6 + refR]              // 右下
+            shoe[(refC - 1) * 6 + (refR - 1)], 
+            shoe[(refC - 1) * 6 + refR],       
+            shoe[refC * 6 + (refR - 1)],       
+            shoe[refC * 6 + refR]              
         ];
 
         let refP = 0, refB = 0;
@@ -188,17 +184,11 @@
             else if (val == 2) refB++;
         }
 
-        let is22 = (refP === 2 && refB === 2);
-        let is40 = (refP === 4 && refB === 0);
-        let is04 = (refP === 0 && refB === 4);
-
-        if (!is22 && !is40 && !is04) return null; // 基準框不是完美型態，跳過這局
-
-        // 2. 抓取「當前框 (Current)」已知的前 3 顆珠子
+        // 2. 抓取「當前框 (Current)」前 3 顆的莊閒總數
         let curBeads = [
-            shoe[(c - 1) * 6 + (r - 1)], // 左上
-            shoe[(c - 1) * 6 + r],       // 左下
-            shoe[c * 6 + (r - 1)]        // 右上
+            shoe[(c - 1) * 6 + (r - 1)], 
+            shoe[(c - 1) * 6 + r],       
+            shoe[c * 6 + (r - 1)]        
         ];
 
         let curP = 0, curB = 0;
@@ -207,16 +197,12 @@
             else if (val == 2) curB++;
         }
 
-        // 3. 根據基準型態，預測第 4 顆該下什麼
-        if (is22) {
-            if (curP === 2 && curB === 1) return '2'; // 補莊湊 2:2
-            if (curP === 1 && curB === 2) return '1'; // 補閒湊 2:2
-        } else if (is40) {
-            if (curP === 3 && curB === 0) return '1'; // 全閒延續
-        } else if (is04) {
-            if (curP === 0 && curB === 3) return '2'; // 全莊延續
-        }
+        // 3. 全比例完美鏡像對比 (Mirroring)
+        // 只要當前的莊閒數量，差 1 顆就能跟上方基準框一模一樣，就發出訊號！
+        if (curP + 1 === refP && curB === refB) return '1'; // 補 1 顆閒(1) 就跟上面一樣
+        if (curB + 1 === refB && curP === refP) return '2'; // 補 1 顆莊(2) 就跟上面一樣
 
+        // 比例已被破壞，不可能湊成一樣的比例，直接放棄觀望
         return null;
     }
 
@@ -260,7 +246,6 @@
         if (recommend) {
             state = 'ATTACKING';
         } else {
-            // 第一組可以預測的點，是綠框的右下角 (Index 9，即 c=1, r=3)
             if (currentLen < 9) {
                 state = 'WARMUP'; 
             } else {
